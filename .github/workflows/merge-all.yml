@@ -1,29 +1,39 @@
-name: Merge All Branches into Main
+name: Auto-Merge and Delete All Branches into Main
 
 on:
+  workflow_dispatch:
   schedule:
-      - cron: '0 0 * * *'
-  workflow_dispatch: 
+    - cron: '0 0 * * *'
+  push:
+    branches-ignore:
+      - main
 
 jobs:
-  merge-all:
+  merge-and-delete:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 
+          fetch-depth: 0
 
-      - name: Merge All Branches
+      - name: Setup Git Config
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout main
 
+      - name: Merge All Branches into Main
+        run: |
+          git checkout main
           for branch in $(git branch -r | grep -v '\->' | grep -v 'origin/main' | sed 's/origin\///'); do
-            echo "Merging branch: $branch"
             git merge "origin/$branch" --no-edit || exit 1
           done
 
-      - name: Push to Main
+      - name: Push Updated Main to GitHub
         run: git push origin main
+
+      - name: Delete Merged Remote Branches
+        run: |
+          for branch in $(git branch -r | grep -v '\->' | grep -v 'origin/main' | sed 's/origin\///'); do
+            git push origin --delete "$branch"
+          done
